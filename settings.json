@@ -8,5 +8,6 @@
     "editor.hover.sticky": false,
     "workbench.colorTheme": "One Dark Pro Vivid",
     "editor.tabSize": 2,
-    "editor.wordWrap": "on"
+    "editor.wordWrap": "on",
+    "editor.minimap.showSlider": "always"
 }
