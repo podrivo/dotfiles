@@ -1,0 +1,12 @@
+{
+    "telemetry.enableTelemetry": false,
+    "diffEditor.ignoreTrimWhitespace": false,
+    "editor.renderWhitespace": "boundary",
+    "workbench.statusBar.feedback.visible": false,
+    "workbench.activityBar.visible": false,
+    "editor.hover.enabled": false,
+    "editor.hover.sticky": false,
+    "workbench.colorTheme": "One Dark Pro Vivid",
+    "editor.tabSize": 2,
+    "editor.wordWrap": "on"
+}
