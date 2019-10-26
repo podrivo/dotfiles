@@ -9,5 +9,10 @@
     "workbench.colorTheme": "One Dark Pro Vivid",
     "editor.tabSize": 2,
     "editor.wordWrap": "on",
-    "editor.minimap.showSlider": "always"
+    "editor.minimap.showSlider": "always",
+    "atomKeymap.promptV3Features": true,
+    "editor.multiCursorModifier": "ctrlCmd",
+    "editor.formatOnPaste": true,
+    "editor.detectIndentation": false,
+    "workbench.editor.closeEmptyGroups": false
 }
