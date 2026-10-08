@@ -1,0 +1,11 @@
+---
+description: Always apply this repo's skills
+alwaysApply: true
+---
+
+# Repo skills
+
+Before responding to any prompt, read and follow the matching skill in `.agents/skills/`:
+
+- `.agents/skills/ponytail/SKILL.md`: for every coding task (writing, fixing, refactoring, reviewing).
+- `.agents/skills/bump-extension-version/SKILL.md`: after any edit to extension files (`manifest.json`, `background.js`, `popup.html`, `popup.js`, icons).
