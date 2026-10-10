@@ -9,3 +9,4 @@ Before responding to any prompt, read and follow the matching skill in `.cursor/
 
 - `.cursor/skills/ponytail/SKILL.md`: for every coding task (writing, fixing, refactoring, reviewing).
 - `.cursor/skills/bump-extension-version/SKILL.md`: after any edit to extension files (`manifest.json`, `background.js`, `popup.html`, `popup.js`, icons).
+- `.cursor/skills/screenshots-not-videos/SKILL.md`: for any UI, browser, or visual work.
