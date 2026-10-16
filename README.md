@@ -15,3 +15,4 @@ Mirrored under `.cursor/skills/` and `.claude/skills/`. Always applied via `use-
 | `ponytail` | Every coding task — laziest solution that works |
 | `bump-extension-version` | After editing Chrome extension files |
 | `screenshots-not-videos` | UI/browser work — show screenshots, no videos unless asked |
+| `pr-images` | Adding images to a PR — PR-numbered files, temp branch always deleted, tag keeps links alive |
