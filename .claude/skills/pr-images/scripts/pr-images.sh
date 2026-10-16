@@ -31,7 +31,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-PARENT="$(gh api "repos/$REPO/git/ref/tags/$TAG" -q .object.sha 2>/dev/null || true)"
+PARENT=""
+if out="$(gh api "repos/$REPO/git/ref/tags/$TAG" -q .object.sha 2>/dev/null)"; then PARENT="$out"; fi
 BASE_TREE=""
 [ -n "$PARENT" ] && BASE_TREE="$(gh api "repos/$REPO/git/commits/$PARENT" -q .tree.sha)"
 
