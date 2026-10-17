@@ -1,9 +1,11 @@
 ---
 name: pr-images
-description: Adds images and screenshots to GitHub pull requests by committing them to the PR's own branch, deleting them in the next commit, and linking them by commit SHA so they keep working after merge, with PR-numbered file names and no extra branches or tags. Use whenever adding, attaching, uploading, or embedding images, screenshots, or visual proof in a PR description or PR comment, or when tempted to create a branch just to host images.
+description: Adds images and screenshots to GitHub pull requests by committing them to the PR's own branch, deleting them in the next commit, and linking them by commit SHA so they keep working after merge, with PR-numbered file names and no extra branches or tags. Never takes or pushes screenshots to a PR unless the user asks. Use whenever adding, attaching, uploading, or embedding images, screenshots, or visual proof in a PR description or PR comment, or when tempted to create a branch just to host images.
 ---
 
 # PR images
+
+**Only when asked.** Unless the user asks or prompts for it, do not take screenshots for a PR and do not push images to a PR. Screenshots shown in the chat reply are separate and don't count as a request to add them to the PR.
 
 Never create branches or tags to host PR images. Always use `scripts/pr-images.sh` from this skill's directory, run from inside the repo while checked out on the PR's branch:
 
