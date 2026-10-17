@@ -1,25 +1,24 @@
 ---
 name: pr-images
-description: Adds images and screenshots to GitHub pull requests with gh, using PR-numbered file names, a temporary branch that is always deleted, and a tag that keeps the links working forever. Use whenever adding, attaching, uploading, or embedding images, screenshots, or visual proof in a PR description or PR comment, or when tempted to create a branch just to host images.
+description: Adds images and screenshots to GitHub pull requests by committing them to the PR's own branch, deleting them in the next commit, and linking them by commit SHA so they keep working after merge, with PR-numbered file names and no extra branches or tags. Use whenever adding, attaching, uploading, or embedding images, screenshots, or visual proof in a PR description or PR comment, or when tempted to create a branch just to host images.
 ---
 
 # PR images
 
-Never create branches by hand to host PR images, and never leave image branches behind. Always use `scripts/pr-images.sh` from this skill's directory, run from inside the repo (or with `GH_REPO=owner/name`):
+Never create branches or tags to host PR images. Always use `scripts/pr-images.sh` from this skill's directory, run from inside the repo while checked out on the PR's branch:
 
 ```bash
-<this-skill-dir>/scripts/pr-images.sh <pr-number> <image>...
+<this-skill-dir>/scripts/pr-images.sh <image>...
 ```
 
 The PR must exist first; open it, then upload.
 
-## What the script guarantees
+## What the script does
 
-- **Naming:** each file is stored at `pr-<N>/pr-<N>-<slug>.<ext>`, uploaded through the temporary branch `pr-images/<N>`.
-- **Branch deleted:** the branch is removed at the end, including when the script fails, and the script checks that it's gone.
-- **Links keep working:** the commit is pinned by the tag `pr-<N>-images`, so GitHub never garbage-collects it, and every URL uses the commit SHA, never a branch name. The script checks each file is reachable at that SHA after the branch is deleted.
-- **Re-runs are safe:** a second run for the same PR stacks a new commit on top of the tag, so earlier links stay valid.
-- The commit message carries `[skip ci]` so no workflow runs on it.
+- **Naming:** each file is committed as `pr-<N>/pr-<N>-<slug>.<ext>`, with `<N>` read from the current branch's PR.
+- **Add, then delete:** one commit adds the images and the next removes them, so the PR's net diff is zero and a squash merge never puts them on the base branch.
+- **Links keep working:** URLs use the SHA of the commit that added the images. GitHub keeps `refs/pull/<N>/head` forever, and that commit is in its history, so it is never garbage collected, even after the branch is deleted on merge.
+- **Checks:** it pushes, waits until the PR head matches, and checks every file is reachable at the SHA.
 
 It prints one markdown line per image, for example:
 
@@ -27,12 +26,19 @@ It prints one markdown line per image, for example:
 ![billing tabs](https://github.com/owner/repo/blob/<sha>/pr-1234/pr-1234-billing-tabs.png?raw=true)
 ```
 
-## Attaching to the PR
+## Rules
 
-1. Name source files descriptively before uploading (`billing-tabs-dark.png`, not `Screenshot 2026-10-16 at 19.02.png`), since the name becomes the slug and alt text.
-2. Put the printed lines where they belong in the body, then update it with `gh pr edit <N> --body-file <file>`, or post them with `gh pr comment <N> --body-file <file>`. Keep the existing body content.
-3. Use the URLs exactly as printed: no `raw.githubusercontent.com` links (they break in private repos) and no branch-name URLs.
+1. **Upload with real code changes.** Commit the code first and run the script before pushing, so code and screenshots go up in a single push and CI and Vercel run once. Never add `[skip ci]`: required checks would not run on the PR head.
+2. **Never rebase or force-push the branch after uploading.** That rewrites the screenshot commit's SHA and its links eventually 404. Update the branch by merging the base branch instead. If a rebase is unavoidable, re-run the script afterwards and replace every old link.
+3. **Name files descriptively before uploading** (`billing-tabs-dark.png`, not `Screenshot 2026-10-16 at 19.02.png`); the name becomes the slug and alt text.
+4. **Attach the links:** put the printed lines where they belong in the body and update it with `gh pr edit <N> --body-file <file>` (keep the existing content), or post them with `gh pr comment <N> --body-file <file>`. Use the URLs exactly as printed: no `raw.githubusercontent.com` links (they break in private repos) and no branch-name URLs.
 
-## Cleanup
+## Check existing links
 
-To drop a PR's images entirely (for example after deleting a PR): `gh api -X DELETE repos/<owner>/<repo>/git/refs/tags/pr-<N>-images`. Their links stop resolving once GitHub prunes the commit.
+To confirm a linked SHA is still in the PR's history (for example after someone else touched the branch):
+
+```bash
+gh api repos/<owner>/<repo>/compare/<sha>...<pr-head-sha> -q .status
+```
+
+`ahead` or `identical` means the link is safe; `diverged` means the commit was rewritten, so re-run the script and replace the links.
