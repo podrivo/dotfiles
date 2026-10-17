@@ -1,42 +1,30 @@
 #!/usr/bin/env bash
-# Upload images for a PR and print markdown that keeps working after the branch is gone.
+# Add images to the current branch's PR and print markdown that keeps working after merge.
 #
-# Usage: pr-images.sh <pr-number> <image>...
-#   Run from inside the repo, or set GH_REPO=owner/name.
+# Usage: pr-images.sh <image>...
+#   Run from inside the repo, checked out on the PR's branch.
 #
-# Files land at pr-<N>/pr-<N>-<slug>.<ext> on a temporary branch pr-images/<N>.
-# The commit is pinned by the tag pr-<N>-images (so it is never garbage collected),
-# the branch is deleted, and every URL is checked against the commit SHA.
-# Re-running for the same PR stacks a new commit on top of the tag, so older links stay valid.
+# Commits the images as pr-<N>/pr-<N>-<slug>.<ext>, commits their deletion right after,
+# pushes, and links them by the first commit's SHA. GitHub keeps refs/pull/<N>/head forever,
+# so that commit stays reachable after the PR is merged and its branch is deleted.
+# The net diff is zero, so a squash merge never puts the images on the base branch.
 set -euo pipefail
 
 die() { echo "error: $*" >&2; exit 1; }
 
-[ $# -ge 2 ] || die "usage: $(basename "$0") <pr-number> <image>..."
-PR="$1"; shift
-[[ "$PR" =~ ^[0-9]+$ ]] || die "PR number must be numeric, got '$PR'"
+[ $# -ge 1 ] || die "usage: $(basename "$0") <image>..."
 command -v gh >/dev/null || die "gh is not installed"
-command -v jq >/dev/null || die "jq is not installed"
 
-REPO="${GH_REPO:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}"
-gh pr view "$PR" --repo "$REPO" --json number >/dev/null 2>&1 || die "PR #$PR not found in $REPO"
+ROOT="$(git rev-parse --show-toplevel)"
+BRANCH="$(git branch --show-current)"
+[ -n "$BRANCH" ] || die "not on a branch"
+PR="$(gh pr view "$BRANCH" --json number -q .number 2>/dev/null)" || die "no PR for branch $BRANCH; open it first"
+REPO="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
 
-BRANCH="pr-images/$PR"
-TAG="pr-$PR-images"
+git fetch -q origin "$BRANCH"
+git merge-base --is-ancestor "origin/$BRANCH" HEAD || die "local $BRANCH is behind origin; pull first"
+
 DIR="pr-$PR"
-TMP="$(mktemp -d)"
-cleanup() {
-  rm -rf "$TMP"
-  gh api -X DELETE "repos/$REPO/git/refs/heads/$BRANCH" >/dev/null 2>&1 || true
-}
-trap cleanup EXIT
-
-PARENT=""
-if out="$(gh api "repos/$REPO/git/ref/tags/$TAG" -q .object.sha 2>/dev/null)"; then PARENT="$out"; fi
-BASE_TREE=""
-[ -n "$PARENT" ] && BASE_TREE="$(gh api "repos/$REPO/git/commits/$PARENT" -q .tree.sha)"
-
-echo '[]' > "$TMP/entries.json"
 PATHS=()
 for f in "$@"; do
   [ -f "$f" ] || die "file not found: $f"
@@ -44,38 +32,31 @@ for f in "$@"; do
   ext="$(printf '%s' "${name##*.}" | tr '[:upper:]' '[:lower:]')"
   slug="$(printf '%s' "${name%.*}" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')"
   path="$DIR/pr-$PR-${slug:-image}.$ext"
-
-  base64 < "$f" | tr -d '\n' > "$TMP/b64"
-  blob="$(jq -n --rawfile c "$TMP/b64" '{content: $c, encoding: "base64"}' \
-    | gh api -X POST "repos/$REPO/git/blobs" --input - -q .sha)"
-
-  jq --arg p "$path" --arg s "$blob" '. + [{path: $p, mode: "100644", type: "blob", sha: $s}]' \
-    "$TMP/entries.json" > "$TMP/e2" && mv "$TMP/e2" "$TMP/entries.json"
+  [ -e "$ROOT/$path" ] && die "$path already exists in the working tree"
+  mkdir -p "$ROOT/$DIR"
+  cp "$f" "$ROOT/$path"
   PATHS+=("$path")
 done
 
-TREE="$(jq -n --slurpfile e "$TMP/entries.json" --arg b "$BASE_TREE" \
-  '{tree: $e[0]} + (if $b == "" then {} else {base_tree: $b} end)' \
-  | gh api -X POST "repos/$REPO/git/trees" --input - -q .sha)"
+cd "$ROOT"
+git add -f -- "${PATHS[@]}"
+git commit -q -m "Add screenshots for #$PR" -- "${PATHS[@]}"
+SHA="$(git rev-parse HEAD)"
+git rm -q -- "${PATHS[@]}"
+git commit -q -m "Remove screenshots for #$PR" -- "${PATHS[@]}"
+rmdir "$DIR" 2>/dev/null || true
 
-COMMIT="$(jq -n --arg t "$TREE" --arg p "$PARENT" --arg m "Images for #$PR [skip ci]" \
-  '{message: $m, tree: $t, parents: (if $p == "" then [] else [$p] end)}' \
-  | gh api -X POST "repos/$REPO/git/commits" --input - -q .sha)"
+git push -q origin "HEAD:$BRANCH"
 
-gh api -X POST "repos/$REPO/git/refs" -f ref="refs/heads/$BRANCH" -f sha="$COMMIT" >/dev/null
-
-if [ -n "$PARENT" ]; then
-  gh api -X PATCH "repos/$REPO/git/refs/tags/$TAG" -f sha="$COMMIT" -F force=true >/dev/null
-else
-  gh api -X POST "repos/$REPO/git/refs" -f ref="refs/tags/$TAG" -f sha="$COMMIT" >/dev/null
-fi
-
-gh api -X DELETE "repos/$REPO/git/refs/heads/$BRANCH" >/dev/null
-gh api "repos/$REPO/git/ref/heads/$BRANCH" >/dev/null 2>&1 && die "branch $BRANCH still exists"
-[ "$(gh api "repos/$REPO/git/ref/tags/$TAG" -q .object.sha)" = "$COMMIT" ] || die "tag $TAG does not point at $COMMIT"
+HEAD_SHA="$(git rev-parse HEAD)"
+for _ in 1 2 3 4 5; do
+  [ "$(gh pr view "$PR" --json headRefOid -q .headRefOid)" = "$HEAD_SHA" ] && break
+  sleep 2
+done
+[ "$(gh pr view "$PR" --json headRefOid -q .headRefOid)" = "$HEAD_SHA" ] || die "PR #$PR head did not update to $HEAD_SHA"
 
 for path in "${PATHS[@]}"; do
-  gh api "repos/$REPO/contents/$path?ref=$COMMIT" -q .sha >/dev/null 2>&1 || die "$path is not reachable at $COMMIT"
+  gh api "repos/$REPO/contents/$path?ref=$SHA" -q .sha >/dev/null 2>&1 || die "$path is not reachable at $SHA"
   alt="$(basename "${path%.*}" | sed -E "s/^pr-$PR-//; s/-/ /g")"
-  echo "![$alt](https://github.com/$REPO/blob/$COMMIT/$path?raw=true)"
+  echo "![$alt](https://github.com/$REPO/blob/$SHA/$path?raw=true)"
 done
