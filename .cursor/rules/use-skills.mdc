@@ -8,6 +8,7 @@ alwaysApply: true
 Before responding to any prompt, read and follow the matching skill in `.cursor/skills/`:
 
 - `.cursor/skills/ponytail/SKILL.md`: for every coding task (writing, fixing, refactoring, reviewing).
+- `.cursor/skills/ux-dx-ax/SKILL.md`: for UI, layout, product, and architecture decisions.
 - `.cursor/skills/bump-extension-version/SKILL.md`: after any edit to extension files (`manifest.json`, `background.js`, `popup.html`, `popup.js`, icons).
 - `.cursor/skills/screenshots-not-videos/SKILL.md`: for any UI, browser, or visual work.
 - `.cursor/skills/pr-images/SKILL.md`: whenever adding images or screenshots to a pull request (description or comment). Only take or push PR screenshots when the user asks.
